@@ -40,8 +40,9 @@ security definer
 set search_path = public, net, vault, extensions
 as $fn$
 declare
-  v_klic text;
-  v_html text;
+  v_klic  text;
+  v_html  text;
+  v_odkaz text;
 begin
   select decrypted_secret into v_klic
     from vault.decrypted_secrets
@@ -51,6 +52,15 @@ begin
     raise warning 'launch_email_podekovani: ve Vaultu chybí resend_api_key, e-mail pro % neodeslán', new.email;
     return null;
   end if;
+
+  -- Adresu nese sám odkaz, jinak by web po kliknutí na mobilu nebo v jiném
+  -- prohlížeči poznal jen prázdný localStorage a chtěl e-mail znovu.
+  -- Procenta se kódují první, jinak by se zakódovala i ta právě vložená.
+  v_odkaz := 'https://makej.eu/?e=' ||
+    replace(replace(replace(replace(replace(replace(
+      new.email, '%', '%25'), '+', '%2B'), '&', '%26'),
+      '#', '%23'), '?', '%3F'), ' ', '%20') ||
+    '#predregistrace';
 
   v_html := $html$<!DOCTYPE html>
 <html lang="cs">
@@ -87,7 +97,7 @@ begin
         <tr>
           <td style="padding:26px 40px 30px;text-align:center;">
             <table cellpadding="0" cellspacing="0" border="0" align="center"><tr><td align="center" style="border-radius:999px;background-color:#0020f6;background-image:linear-gradient(135deg,#2a45ff,#0020f6);">
-              <a href="https://makej.eu/#predregistrace" style="display:inline-block;padding:16px 34px;color:#ffffff;text-decoration:none;font-size:16px;font-weight:700;letter-spacing:0.2px;">Dokončit předregistraci</a>
+              <a href="{{ODKAZ}}" style="display:inline-block;padding:16px 34px;color:#ffffff;text-decoration:none;font-size:16px;font-weight:700;letter-spacing:0.2px;">Dokončit předregistraci</a>
             </td></tr></table>
             <p style="margin:28px 0 0;font-size:14px;line-height:1.7;color:#4b5578;">
               <strong style="color:#0a0d2e;">Makej</strong> je apka na brigády ve tvém okolí — swajpuješ nabídky, matchuješ se s firmami a jdeš makat. Bez CV, bez pohovorů, zdarma.
@@ -111,6 +121,9 @@ begin
   </table>
 </body>
 </html>$html$;
+
+  v_html := replace(v_html, '{{ODKAZ}}', v_odkaz);
+
 
   perform net.http_post(
     url     := 'https://api.resend.com/emails',

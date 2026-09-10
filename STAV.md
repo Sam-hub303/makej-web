@@ -33,6 +33,12 @@ Po změně JSX **vždy bumpni `?v=N`** u daného souboru v `employer/index.html`
 
 ## Hotovo naposledy
 
+- **Odkaz z e-mailu nese adresu příjemce** (2026-09-10, migrace `launch_email_odkaz_nese_adresu`, `script.js?v=53`): tlačítko v uvítacím e-mailu míří na `makej.eu/?e=<email>#predregistrace`. **Proč:** web poznával člověka jen podle `localStorage`, takže kliknutí na mobilu nebo v jiném prohlížeči skončilo na prvním kroku a chtělo e-mail, který dotyčný před chvílí zadal. S adresou v odkazu se první krok přeskočí, ukáže se rovnou krok 2 s předvyplněnou adresou a rozbaleným formulářem; `?e=` se hned uklidí přes `history.replaceState`, ať nezůstane v historii.
+
+  Kódování v SQL řeší `replace` — **procenta první**, jinak by se zakódovala i ta právě vložená. Nové riziko to nepřináší: na webu si kdokoli může do prvního pole napsat cizí adresu úplně stejně.
+
+  Ověřeno v čistém profilu prohlížeče: s `?e=` je `wl-1` skrytý, `wl-2` viditelný, accordion `data-open` a adresa předvyplněná; bez `?e=` a bez paměti zůstane krok 1 a nic nespadne.
+
 - **Uvítací e-mail: vzhled podle předlohy + výzva k předregistraci** (2026-09-10, migrace `launch_email_sablona_ve_firemnich_barvach` → `launch_email_sablona_podle_predlohy` → `launch_email_vyzva_k_predregistraci`): z tmavé navy do firemních barev (levandulová hlavička `#eef0fd`, bílá karta, modrá `#0020f6`), předmět **„Seš na seznamu!"**. V těle je rámeček „Zakládající člen" s výzvou předregistraci dokončit — **záměrně bez konkrétní odměny**: Makačky jsou na ceníku popsané měna, ale dokud není částka rozhodnutá, slibovat číslo v e-mailu znamená psát lidem něco, co při spuštění nemusí platit.
 
   **Tlačítko míří na `makej.eu/#predregistrace`** a `script.js` na ten hash reaguje: odroluje na `#brzy` a rozbalí zakládání účtu. Dvě pasti, na které si dát pozor při úpravách: obsluha **musí stát až za definicí accordionu** (`acc` je `const`, dřív by spadla na TDZ — stejná chyba jako kdysi u `wl-or`) a **musí čekat na `load`**, protože dokud se nedotáhnou obrázky a fonty, má stránka jinou výšku a skok skončí vedle. Ověřeno obojí: s uloženou pamětí se formulář otevře (`data-open`, `aria-expanded="true"`), bez ní zůstane krok 1 a nic nespadne.

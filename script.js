@@ -1656,10 +1656,29 @@ function showToast(msg) {
   // dřív by volání spadlo na dočasné mrtvé zóně `const`.
   if (location.hash === '#predregistrace') {
     function naPredregistraci() {
+      // Adresu nese sám odkaz z e-mailu (…/?e=…#predregistrace). Bez toho by
+      // web člověka poznal jen podle localStorage, takže po kliknutí na mobilu
+      // nebo v jiném prohlížeči by ho poslal znovu vyplňovat e-mail, který nám
+      // před chvílí dal. S adresou z odkazu první krok přeskočíme.
+      const zOdkazu = new URLSearchParams(location.search).get('e');
+      if (zOdkazu && /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(zOdkazu) && $('wl-2').hidden) {
+        zapamatuj({ email: zOdkazu });
+        $('wl-mail2').textContent = zOdkazu;
+        $('wl-typed').textContent = 'Seš na seznamu!';
+        $('wl-cur2').hidden = true;
+        $('wl-lead2').innerHTML = 'Zapsali jsme si <b>' + zOdkazu.replace(/[<>&]/g, '') +
+          '</b>. Zbývá dokončit předregistraci.';
+        $('wl-jiny').hidden = false;
+        ukaz('wl-2', true);
+        // Adresu z řádku prohlížeče uklidit — ať nezůstane v historii ani se
+        // omylem nešíří s odkazem dál. Na stav stránky to nemá vliv.
+        try { history.replaceState(null, '', location.pathname + '#predregistrace'); } catch (e) {}
+      }
+
       const sekce = document.getElementById('brzy');
       if (sekce) sekce.scrollIntoView({ block: 'start' });
-      // Rozbalit jde jen krok 2. Kdo přijde z jiného zařízení, uvidí nejdřív
-      // pole na e-mail a nabídka účtu se mu ukáže až po jeho odeslání.
+      // Rozbalit jde jen krok 2. Kdo sem přijde bez adresy v odkazu i bez
+      // paměti, uvidí pole na e-mail a nabídka účtu se ukáže až po odeslání.
       if (!$('wl-2').hidden && !acc.hidden) otevri();
     }
     // Až po `load`: dokud se nedotáhnou obrázky a fonty, má stránka jinou
