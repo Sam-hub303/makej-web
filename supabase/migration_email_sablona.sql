@@ -7,11 +7,18 @@
 -- žije tady, jednotlivé e-maily dodávají nadpis, podnadpis a vnitřek bílé
 -- části. Bez toho by se každá změna vzhledu dělala dvakrát a časem rozešla.
 --
--- LOGO JE OBRÁZEK, NE TEXT. League Spartan je webový font a poštovní klienti
--- vlastní fonty zahazují — nápis psaný textem dorazil vykreslený Arialem.
--- `logo-makej.png` je vyrenderovaný z téhož souboru fontu, co má web
--- (fonts/LeagueSpartan-Variable.woff2, váha 900, #0020f6). Musí ležet na
--- veřejné adrese: data: URI Gmail v obrázcích blokuje.
+-- LOGO JE TEXT, ne obrázek — a je to vědomý ústupek. Obrázek se servíroval
+-- správně (HTTP 200, platný PNG), ale Seznam Email a řada dalších klientů
+-- obrázky z cizích serverů ve výchozím stavu blokuje a příjemci zbyla ikona
+-- rozbitého obrázku. Text dorazí vždycky.
+--
+-- Cenou je font: League Spartan je webový font a klienti @font-face zahazují,
+-- takže se nápis vykreslí náhradním řezem (Arial Black / Helvetica). Ve stacku
+-- ji uvádíme první kvůli těm pár klientům, kde je font v systému. Váha,
+-- prostrkání i barva jsou podle navbaru, ať je to co nejblíž.
+--
+-- `logo-makej.png` v kořeni webu zůstává — vyrenderovaný z fontu webu, může se
+-- hodit jinde (og:image). V e-mailu se nepoužívá.
 -- ═══════════════════════════════════════════════════════════════════════════
 
 create or replace function public.makej_email_html(
@@ -32,7 +39,7 @@ as $$
 
         <tr>
           <td style="background:#eef0fd;padding:34px 40px 40px;text-align:center;">
-            <img src="https://makej.eu/logo-makej.png" alt="Makej" width="130" height="43" style="display:block;margin:0 auto;border:0;outline:none;text-decoration:none;" />
+            <div style="font-family:'League Spartan','Arial Black','Helvetica Neue',Arial,sans-serif;font-size:32px;font-weight:900;letter-spacing:-1px;line-height:1;color:#0020f6;">Makej</div>
             <h1 style="margin:26px 0 0;font-size:30px;line-height:1.2;font-weight:800;color:#0a0d2e;">{{NADPIS}}</h1>
             <p style="margin:16px 0 0;font-size:15px;line-height:1.6;color:#6b7394;">{{PODNADPIS}}</p>
           </td>
