@@ -33,6 +33,18 @@ Po změně JSX **vždy bumpni `?v=N`** u daného souboru v `employer/index.html`
 
 ## Hotovo naposledy
 
+- **E-mail po registraci + logo jako obrázek + společná šablona** (2026-09-10, migrace `makej_email_spolecna_sablona_a_logo`, `registrace_email_a_prechod_na_spolecnou_sablonu`; soubory `supabase/migration_email_sablona.sql`, `…_launch_welcome_email.sql`, `…_registrace_email.sql`):
+
+  **Logo je teď obrázek `logo-makej.png`, ne text.** League Spartan je webový font a **poštovní klienti vlastní fonty zahazují** — nápis psaný textem dorazil vykreslený Arialem. Soubor je vyrenderovaný headless prohlížečem z `fonts/LeagueSpartan-Variable.woff2` (váha 900, `#0020f6`), takže sedí s navbarem; 390×130 px na zobrazení ve 130 px kvůli retině. **Musí ležet na veřejné adrese** (`makej.eu/logo-makej.png`) — `data:` URI Gmail v obrázcích blokuje.
+
+  **Obálka e-mailů žije v `makej_email_html(nadpis, podnadpis, telo)`.** E-maily jsou dva a další přibudou; bez sdílené obálky by se každá změna vzhledu dělala dvakrát a časem rozešla.
+
+  **E-mail po registraci**: vlastní trigger `on_auth_user_created_email` na `auth.users`, vedle `on_auth_user_created` — **do `handle_new_user` to nepatří**, ta zakládá profil a výpadek Resendu nesmí rozhodovat o tom, jestli registrace projde. Jméno z metadat jde do HTML přes nový `html_escape`, jinak by si kdokoli registrací pod jménem s `<` poslal do e-mailu vlastní značky.
+
+  **Kdo projde předregistrací, dostane dva e-maily** — „Seš na seznamu!" po zadání adresy a „Díky za registraci!" po založení účtu. Záměr, každý mluví o něčem jiném.
+
+  Repo a databáze ověřeny otiskem (obálka `df93f43a…`, těla `41bb6b97…` a `65e9e905…`) — sedí.
+
 - **Odkaz z e-mailu nese adresu příjemce** (2026-09-10, migrace `launch_email_odkaz_nese_adresu`, `script.js?v=53`): tlačítko v uvítacím e-mailu míří na `makej.eu/?e=<email>#predregistrace`. **Proč:** web poznával člověka jen podle `localStorage`, takže kliknutí na mobilu nebo v jiném prohlížeči skončilo na prvním kroku a chtělo e-mail, který dotyčný před chvílí zadal. S adresou v odkazu se první krok přeskočí, ukáže se rovnou krok 2 s předvyplněnou adresou a rozbaleným formulářem; `?e=` se hned uklidí přes `history.replaceState`, ať nezůstane v historii.
 
   Kódování v SQL řeší `replace` — **procenta první**, jinak by se zakódovala i ta právě vložená. Nové riziko to nepřináší: na webu si kdokoli může do prvního pole napsat cizí adresu úplně stejně.
