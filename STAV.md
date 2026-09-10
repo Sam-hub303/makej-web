@@ -33,6 +33,28 @@ Po změně JSX **vždy bumpni `?v=N`** u daného souboru v `employer/index.html`
 
 ## Hotovo naposledy
 
+- **Uvítací e-mail: vzhled podle předlohy + výzva k předregistraci** (2026-09-10, migrace `launch_email_sablona_ve_firemnich_barvach` → `launch_email_sablona_podle_predlohy` → `launch_email_vyzva_k_predregistraci`): z tmavé navy do firemních barev (levandulová hlavička `#eef0fd`, bílá karta, modrá `#0020f6`), předmět **„Seš na seznamu!"**. V těle je rámeček „Zakládající člen" s výzvou předregistraci dokončit — **záměrně bez konkrétní odměny**: Makačky jsou na ceníku popsané měna, ale dokud není částka rozhodnutá, slibovat číslo v e-mailu znamená psát lidem něco, co při spuštění nemusí platit.
+
+  **Tlačítko míří na `makej.eu/#predregistrace`** a `script.js` na ten hash reaguje: odroluje na `#brzy` a rozbalí zakládání účtu. Dvě pasti, na které si dát pozor při úpravách: obsluha **musí stát až za definicí accordionu** (`acc` je `const`, dřív by spadla na TDZ — stejná chyba jako kdysi u `wl-or`) a **musí čekat na `load`**, protože dokud se nedotáhnou obrázky a fonty, má stránka jinou výšku a skok skončí vedle. Ověřeno obojí: s uloženou pamětí se formulář otevře (`data-open`, `aria-expanded="true"`), bez ní zůstane krok 1 a nic nespadne.
+
+  **Tlačítko v e-mailu nefungovalo, dokud se nepushlo** — na produkci běžel `script.js?v=51` bez té obsluhy. Šablona e-mailu žije v databázi, kód webu v repu; **při změně odkazu v e-mailu je potřeba nasadit obojí.**
+
+  Buttony v e-mailu mají `background-color` **i** `background-image` — Outlook přechod zahazuje a bez plné barvy pod ním by zbyl bílý text na bílém.
+
+- **Odchozí e-maily přes Resend — čekací list hotový** (2026-09-09, migrace `pg_net_pro_odchozi_maily` + `launch_emails_podekovani_pres_resend`, kopie v `supabase/migration_launch_welcome_email.sql`): kdo nechá e-mail na webu, dostane obratem poděkování. `AFTER INSERT` trigger na `launch_emails` → `net.http_post` → Resend. **Ověřeno end-to-end**: Resend vrátil 200 a e-mail má stav `delivered`; druhé odeslání téže adresy nevygenerovalo žádný požadavek (duplicitu zastaví `on conflict do nothing`, takže se trigger vůbec nespustí).
+
+  **Klíč je ve Vaultu** pod jménem `resend_api_key`, ne v repu ani v kódu webu. Doména `makej.eu` je v Resendu ověřená (region eu-west-1), odesílatel `Makej <ahoj@makej.eu>`. Celé tělo triggeru je v `exception` bloku — když Resend selže, e-mail se ztratí, ale adresa v seznamu zůstane. Kontrola odeslání: `select status_code, content from net._http_response order by created desc limit 10;`
+
+  **Proč přímo z DB, ne přes Edge Function:** je to jeden HTTP požadavek. Edge Function by přidala další nasazovanou část a druhé místo pro tajemství. Až bude druhů e-mailů víc, vyplatí se přesun; teď ne. `supabase/functions/notify-match/index.ts` v repu leží, ale **nasazený není** — seznam Edge Functions v projektu je prázdný.
+
+  **Účty zatím e-mail neposílají.** V Auth je „Confirm email" **vypnuté** — od 2026-08-11 se účty potvrzují samy a žádný e-mail neodchází (starší z července ještě potvrzovací dostaly). SMTP přes Resend jsem ověřil zvlášť (`smtp.resend.com:465`, uživatel `resend`, heslo = API klíč) — funguje, ale nastavit ho jde jen v dashboardu. **Pozor:** zapnutí potvrzování rozbije třetí krok předregistrace — po `signUp` by uživatel neměl session, takže obrazovka „Vítej / Zakládající člen" nemá z čeho čerpat.
+
+  **Testovací řádky smazány** — v `launch_emails` zbyly 2 reálné adresy. (Dřívější hlášení, že jsou testovací data pryč, nesedělo; dvě `@example.com` tam pořád byla.)
+
+- **Firemní údaje v patičce + `.env` s klíčem od Resendu** (2026-09-09): do `.footer-bottom` na všech 11 stránkách přibyl druhý `<span>` s „Makej s náma s.r.o. · IČO 29900590". Patička už `display:flex; justify-content:space-between` měla, jen v ní byl jediný prvek — copyright teď stojí vlevo, firma vpravo, na mobilu se to samo skládá pod sebe. **Žádná změna CSS nebyla potřeba**, včetně modré varianty patičky (`#download + #footer .footer-bottom span` míří na oba spany).
+
+  Klíč od Resendu leží v `.env` v kořeni webu jako `RESEND_API_KEY` (soubor je v `.gitignore`, práva 600, git ho nevidí — ověřeno `git check-ignore`). **Statický web z něj nic nečte** — je to jen úložiště pro chvíli, kdy se bude psát Edge Function; ta si hodnotu vezme ze Supabase → Edge Functions → Secrets, ne odsud. Do frontendu klíč nikdy nepatří, poslal by se každému návštěvníkovi.
+
 - **Opakovaný e-mail na čekacím listu se přizná** (2026-09-06, migrace `join_launch_list_vraci_zda_pribylo`): ochrana proti duplicitám v DB byla od začátku (unikátní index na `lower(email)` + `on conflict do nothing`), jen o ní návštěvník nevěděl. Funkce vracela `void` → přepsána na `boolean` (`get diagnostics row_count`); návratový typ nejde měnit za běhu, takže `drop` + `create` a znovu `grant` pro `anon`. Formulář teď větví na **„Děkujeme za zaslání."** / **„Na seznamu už jsi."** — stejný psací stroj, stejná typografie. **Vedlejšek:** zvenčí jde nově zjistit, jestli je konkrétní adresa na seznamu; u čekacího listu vědomě přijato.
 
 - **Lišta cookies od Yasina (2 poslední commity + jejich základ)** (2026-09-06): Yasinovy poslední commity `e930359` a `221c881` jen ladí text a rozvržení lišty cookies — ta sama ale přišla o commit dřív (`84127ad`) a v tomhle repu **vůbec nebyla**, takže se převzal celý systém v cílové podobě.

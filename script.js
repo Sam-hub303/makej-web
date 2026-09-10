@@ -1650,6 +1650,25 @@ function showToast(msg) {
   }
   accBtn.addEventListener('click', () => (acc.hasAttribute('data-open') ? zavri() : otevri()));
 
+  // Odkaz z uvítacího e-mailu (makej.eu/#predregistrace) rovnou rozbalí
+  // zakládání účtu — jinak člověk přistane na sbalené nabídce a musí hledat,
+  // kam kliknout. Stát to musí AŽ TADY: `acc` i `otevri` jsou o pár řádků výš,
+  // dřív by volání spadlo na dočasné mrtvé zóně `const`.
+  if (location.hash === '#predregistrace') {
+    function naPredregistraci() {
+      const sekce = document.getElementById('brzy');
+      if (sekce) sekce.scrollIntoView({ block: 'start' });
+      // Rozbalit jde jen krok 2. Kdo přijde z jiného zařízení, uvidí nejdřív
+      // pole na e-mail a nabídka účtu se mu ukáže až po jeho odeslání.
+      if (!$('wl-2').hidden && !acc.hidden) otevri();
+    }
+    // Až po `load`: dokud se nedotáhnou obrázky a fonty, má stránka jinou
+    // výšku a skok by skončil vedle. Ve stejnou chvíli mizí i úvodní loader,
+    // takže člověk uvidí, kam ho to poslalo.
+    if (document.readyState === 'complete') naPredregistraci();
+    else window.addEventListener('load', naPredregistraci, { once: true });
+  }
+
   // ── 2 · založení účtu ────────────────────────────────────────────────
   $('wl-form2').addEventListener('submit', async ev => {
     ev.preventDefault();
